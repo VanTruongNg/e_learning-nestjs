@@ -3,12 +3,14 @@ import { AuthService } from './auth.service';
 import { StatusCode } from '../common/enums/api.enum';
 import { LoginRequest, RegisterRequest } from './dto/user.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth, ApiBody, ApiOperation } from '@nestjs/swagger';
 
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
     @Get('users')
+    @ApiOperation({ summary: 'Lấy danh sách người dùng' })
     async getAllUsers(
         @Query('page') page: string = '1',
         @Query('limit') limit: string = '15'
@@ -44,6 +46,21 @@ export class AuthController {
 
     @Post('register')
     @HttpCode(201)
+    @ApiOperation({ summary: 'Đăng ký người dùng mới' })
+    @ApiBody({
+        type: RegisterRequest,
+        description: 'Thông tin đăng ký tài khoản',
+        examples: {
+            RegisterBody: {
+                value: {
+                    username: "",
+                    email: "",
+                    password: "",
+                    confirmPassword: ""
+                }
+            }
+        }
+    })
     async register(@Body() user: RegisterRequest) {
         const { password, confirmPassword } = user;
 
@@ -62,6 +79,19 @@ export class AuthController {
 
     @Post('login')
     @HttpCode(200)
+    @ApiOperation({ summary: 'Đăng nhập' })
+    @ApiBody({
+        type: LoginRequest,
+        description: 'Thông tin đăng nhập',
+        examples: {
+            LoginBody: {
+                value: {
+                    email: "",
+                    password: ""
+                }
+            }
+        }
+    })
     async login(@Body() user: LoginRequest) {
         const result = await this.authService.login(user);
         return {
@@ -69,8 +99,10 @@ export class AuthController {
         };
     }
 
-    @Get('me') 
-    @UseGuards(AuthGuard()) // Sử dụng AuthGuard để bảo vệ route này
+    @Get('me')
+    @UseGuards(AuthGuard())
+    @ApiOperation({ summary: 'Lấy thông tin người dùng hiện tại' })
+    @ApiBearerAuth('access-token')
     async getMe(@Req() req: any) {
         const user = req.user;
         if (!user) {
