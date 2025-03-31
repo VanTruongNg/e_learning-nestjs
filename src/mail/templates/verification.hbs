@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Xác thực tài khoản</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h2>Xin chào {{name}}!</h2>
+    
+    <p>Cảm ơn bạn đã đăng ký tài khoản. Để hoàn tất quá trình đăng ký, vui lòng sử dụng mã xác thực sau:</p>
+    
+    <div style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; text-align: center; margin: 20px 0;">
+        <code style="font-size: 18px; font-weight: bold; color: #333;">{{token}}</code>
+    </div>
+    
+    <p>Vui lòng copy mã xác thực trên và dán vào trang xác thực tài khoản.</p>
+    
+    <p>Link xác thực này sẽ hết hạn sau 15 phút.</p>
+    
+    <div class="footer">
+        <p>Nếu bạn không yêu cầu xác thực này, vui lòng bỏ qua email này.</p>
+        <p>Email này được gửi tự động, vui lòng không trả lời.</p>
+    </div>
+</body>
+</html>

@@ -13,11 +13,15 @@ export class TransformInterceptor<T> implements NestInterceptor<T, SuccessRespon
     const statusCode = response.statusCode || StatusCode.SUCCESS;
 
     return next.handle().pipe(
-      map(data => ({
-        status: statusCode,
-        message: this.getMessageFromStatus(statusCode),
-        data: data
-      })),
+      map(data => {
+        // Kiểm tra nếu data đã được wrap trong một object có trường data
+        const responseData = data?.data ? data.data : data;
+        return {
+          status: statusCode,
+          message: this.getMessageFromStatus(statusCode),
+          data: responseData
+        };
+      }),
     );
   }
 

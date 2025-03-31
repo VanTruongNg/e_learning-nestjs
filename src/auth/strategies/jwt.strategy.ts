@@ -2,32 +2,43 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { User, UserDocument } from '../schema/user.schema';
-import { Model } from 'mongoose';
+import { RedisService } from '../../redis/redis.service';
+import { createBlacklistKey } from '../../config/redis.config';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
     constructor(
-        @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
-        private readonly configService: ConfigService,
+        private configService: ConfigService,
+        private redisService: RedisService
     ) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: configService.get<string>('JWT_ACCESS_SECRET_KEY'),
+            secretOrKey: configService.get<string>('JWT_ACCESS_SECRET_KEY')
         });
     }
 
     async validate(payload: any) {
         try {
-            const user = await this.userModel.findById(payload.sub).exec();
-            if (!user) {
-                throw new UnauthorizedException('User không tồn tại');
+            if (!payload.jti) {
+                throw new UnauthorizedException('Invalid token format');
             }
-            return user;
+
+            const isBlacklisted = await this.redisService.exists(createBlacklistKey(payload.jti));
+            if (isBlacklisted) {
+                throw new UnauthorizedException('Token has been revoked');
+            }
+
+            return {
+                userId: payload.sub,
+                email: payload.email,
+            };
         } catch (error) {
-            throw new UnauthorizedException('Token không hợp lệ');
+            throw new UnauthorizedException(
+                error instanceof UnauthorizedException 
+                    ? error.message 
+                    : 'Invalid token'
+            );
         }
     }
 }
