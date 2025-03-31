@@ -53,6 +53,28 @@ export class AuthController {
         };
     }
 
+    @Get('google')
+    @UseGuards(AuthGuard('google'))
+    async GoogleAuth() {}
+
+    @Get('google/callback')
+    @UseGuards(AuthGuard('google'))
+    async googleAuthCallback(@Req() req, @Res() res: Response) {
+        const { access_token, refresh_token } = await this.authService.googleLogin(req.user);
+        const frontendUrl = process.env.FRONTEND_URL
+
+        res.cookie('refresh_token', refresh_token, {
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        res.setHeader('Location', `${frontendUrl}/auth/callback?access_token=${access_token}`);
+        res.status(302);
+        res.end();
+    }
+
     @Post('refresh')
     @HttpCode(200)
     @ApiOperation({ summary: 'Làm mới access token' })

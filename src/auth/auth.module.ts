@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RedisModule } from 'src/redis/redis.module';
 import { MailModule } from 'src/mail/mail.module';
+import { GoogleStrategy } from './strategies/googe.strategy';
 
 @Module({
   imports: [
@@ -50,7 +51,8 @@ import { MailModule } from 'src/mail/mail.module';
         });
       },
       inject: [ConfigService]
-    }
+    },
+    GoogleStrategy,
   ],
   exports: [
     PassportModule,

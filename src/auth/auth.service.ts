@@ -189,6 +189,35 @@ export class AuthService {
         }
     }
 
+    async googleLogin(googleUser: any) {
+        try {
+            const { email, firstName, lastName, photo } = googleUser;
+            let user = await this.userSchema.findOne({ email });
+            
+            if (!user) {
+                user = new this.userSchema({
+                    email,
+                    username: `${firstName} ${lastName}`,
+                    isVerified: true,
+                    avatarUrl: photo,
+                    password: null,
+                });
+                await user.save();
+            }
+    
+            const tokens = await this.generateTokens(user);
+            
+            return {
+                user,
+                ...tokens
+            };
+        } catch (error) {
+            throw error instanceof HttpException 
+                ? error 
+                : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
     async refresh(refreshToken: string): Promise<TokenResponse> {
         try {
             const decoded = this.jwtRefreshService.verify(refreshToken) as { sessionId: string, sub: string };
