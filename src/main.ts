@@ -1,49 +1,86 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { HttpException, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-
-const globalPrefix = 'api/v1';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const config = new DocumentBuilder()
-    .setTitle('Ecommerce API')
-    .setDescription('Ecommerce API description')
-    .setVersion('1.0')
-    .addServer(`http://localhost:3000/${globalPrefix}`)
-    .addBearerAuth(
-      {
-        description: `Please enter token in following format: Bearer <JWT>`,
-        name: 'Authorization',
-        bearerFormat: 'Bearer',
-        scheme: 'Bearer',
-        type: 'http',
-        in: 'Header'
-      },
-      'access-token'
-    )
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      tryItOutEnabled: true,
-    },
+    // Cookie parser
+    app.use(cookieParser());
+
+  // CORS
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    credentials: true
   });
 
-  // Áp dụng global interceptor để transform response
-  app.useGlobalInterceptors(new TransformInterceptor());
-  
-  // Áp dụng global filter để xử lý exception
+
+  // Global prefix
+  app.setGlobalPrefix('api/v1');
+
+  // Pipes
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true
+  }));
+
+  // Filters
   app.useGlobalFilters(new HttpExceptionFilter());
-  
-  app.useGlobalPipes(new ValidationPipe())
-  app.setGlobalPrefix(globalPrefix);
+
+  // Interceptors
+  app.useGlobalInterceptors(new TransformInterceptor());
+
+  // Swagger
+  const config = new DocumentBuilder()
+    .setTitle('E-Learning API')
+    .setDescription(`
+      ## Authentication Flows
+      
+      ### Login Flow:
+      1. Call POST /auth/login để nhận access_token và refresh_token cookie
+      2. Sử dụng access_token trong Authorization header cho các protected routes
+      
+      ### Refresh Flow:
+      1. Call POST /auth/refresh với refresh_token cookie để nhận access_token mới
+      
+      ### Logout Flow:
+      1. Call POST /auth/logout với:
+         - Authorization header: Bearer {access_token}
+         - HttpOnly cookie refresh_token (tự động gửi bởi browser)
+         
+      Note: Swagger UI không hỗ trợ test với HttpOnly cookies. Vui lòng sử dụng Postman hoặc client khác để test đầy đủ flow.
+    `)
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT access token',
+        in: 'header',
+      },
+      'access-token',
+    )
+    .addCookieAuth(
+      'refresh_token',
+      {
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'refresh_token'
+      },
+      'refresh-token'
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
 
   await app.listen(3000);
 }
+
 bootstrap();

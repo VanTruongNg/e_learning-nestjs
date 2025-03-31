@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document, Model } from "mongoose";
+import { Document, Model, Types } from "mongoose";
 import * as bcrypt from "bcrypt";
 
 export enum Role {
@@ -40,6 +40,12 @@ export class User {
 
     @Prop({ required: false, nullable: true })
     avartarUrl: string;
+
+    @Prop({ default: 0 })
+    balance: number;
+
+    @Prop({ type: Date, default: null })
+    deletedAt?: Date
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
