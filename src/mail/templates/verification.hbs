@@ -31,12 +31,13 @@
 <body>
     <h2>Xin chào {{name}}!</h2>
     
-    <p>Cảm ơn bạn đã đăng ký tài khoản. Để hoàn tất quá trình đăng ký, vui lòng xác thực email của bạn bằng cách click vào nút bên dưới:</p>
+    <p>Cảm ơn bạn đã đăng ký tài khoản. Để hoàn tất quá trình đăng ký, vui lòng sử dụng mã xác thực sau:</p>
     
-    <a href="{{url}}" class="button">Xác thực Email</a>
+    <div style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; text-align: center; margin: 20px 0;">
+        <code style="font-size: 18px; font-weight: bold; color: #333;">{{token}}</code>
+    </div>
     
-    <p>Hoặc bạn có thể copy và paste đường link sau vào trình duyệt:</p>
-    <p>{{url}}</p>
+    <p>Vui lòng copy mã xác thực trên và dán vào trang xác thực tài khoản.</p>
     
     <p>Link xác thực này sẽ hết hạn sau 15 phút.</p>
     

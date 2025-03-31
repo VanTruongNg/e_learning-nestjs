@@ -32,6 +32,9 @@ export class User {
     @Prop({ required: true, minlength: 6 })
     password: string;
 
+    @Prop({ default: null })
+    avatarUrl: string;
+
     @Prop({ type: String, default: Role.USER, enum: Role })
     role: Role;
 

@@ -193,15 +193,25 @@ export class AuthService {
         try {
             const decoded = this.jwtRefreshService.verify(refreshToken) as { sessionId: string, sub: string };
             
+            if (!decoded?.sessionId) {
+                throw new HttpException(
+                    "Token không hợp lệ",
+                    StatusCode.UNAUTHORIZED
+                );
+            }
+            
             const sessionString = await this.redisService.get(createSessionKey(decoded.sessionId));
-            if (!sessionString || typeof sessionString !== 'string') {
+            if (!sessionString) {
                 throw new HttpException(
                     "Session không hợp lệ hoặc đã hết hạn",
                     StatusCode.UNAUTHORIZED
                 );
             }
 
-            const sessionData = JSON.parse(sessionString) as SessionData;
+            const sessionData = typeof sessionString === 'string'
+                ? JSON.parse(sessionString)
+                : sessionString as SessionData;
+
             const user = await this.userSchema.findById(sessionData.userId);
             if (!user) {
                 throw new HttpException(
@@ -211,10 +221,9 @@ export class AuthService {
             }
 
             await this.redisService.del(createSessionKey(decoded.sessionId));
-
             return await this.generateTokens(user);
         } catch (error) {
-            throw error instanceof HttpException ? error : new HttpException("Token không hợp lệ", StatusCode.UNAUTHORIZED);
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
         }
     }
 

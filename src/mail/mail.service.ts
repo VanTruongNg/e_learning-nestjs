@@ -13,8 +13,6 @@ export class MailService {
         to: string,
         data: { name: string; token: string }
     ): Promise<boolean> {
-        const baseUrl = this.configService.get('APP_URL');
-        
         try {
             await this.mailerService.sendMail({
                 to,
@@ -22,7 +20,7 @@ export class MailService {
                 template: 'verification',
                 context: {
                     name: data.name,
-                    url: `${baseUrl}/auth/verify?token=${data.token}`,
+                    token: data.token,
                 },
             });
             return true;
@@ -36,8 +34,6 @@ export class MailService {
         to: string,
         data: { name: string; token: string }
     ): Promise<boolean> {
-        const baseUrl = this.configService.get('APP_URL');
-
         try {
             await this.mailerService.sendMail({
                 to,
@@ -45,7 +41,7 @@ export class MailService {
                 template: 'reset-password',
                 context: {
                     name: data.name,
-                    url: `${baseUrl}/auth/reset-password?token=${data.token}`,
+                    token: data.token,
                 },
             });
             return true;
