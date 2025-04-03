@@ -7,6 +7,9 @@ import { AuthModule } from './auth/auth.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TransactionModule } from './transaction/transaction.module';
 import { RedisModule } from './redis/redis.module';
+import { CourseModule } from './course/course.module';
+import { LessonModule } from './lesson/lesson.module';
+import { QuizModule } from './quiz/quiz.module';
 
 @Module({
   imports: [
@@ -26,7 +29,10 @@ import { RedisModule } from './redis/redis.module';
     AuthModule,
     RedisModule,
     TransactionModule,
-    MailModule
+    MailModule,
+    CourseModule,
+    LessonModule,
+    QuizModule
   ],
   controllers: [AppController],
   providers: [AppService],

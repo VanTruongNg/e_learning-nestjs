@@ -24,8 +24,8 @@ export class Token extends Document {
     @Prop({ required: true, default: false })
     isUsed: boolean;
 
-    @Prop({ required: true, expires: 900 })
-    createdAt: Date;
+    @Prop({ type: Date, default: null })
+    deletedAt?: Date;
 }
 
 export const TokenSchema = SchemaFactory.createForClass(Token);

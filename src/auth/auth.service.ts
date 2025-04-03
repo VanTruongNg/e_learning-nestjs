@@ -37,7 +37,8 @@ export class AuthService {
             
             const refreshPayload = {
                 sessionId,
-                sub: user._id.toString()
+                sub: user._id.toString(),
+                type: 'refresh'
             };
 
             const access_token = this.jwtAccessService.sign(accessPayload);
@@ -46,6 +47,7 @@ export class AuthService {
             const sessionData: SessionData = {
                 userId: user._id.toString(),
                 refreshToken: refresh_token,
+                accessTokenJTI: jti,
                 createdAt: Date.now()
             };
 
@@ -122,7 +124,6 @@ export class AuthService {
     }
 
     async register(user: RegisterRequest): Promise<UserDocument> {
-        try {
             const { username, password, email } = user;
 
             const existingUser = await this.userSchema.findOne({ email });
@@ -153,9 +154,6 @@ export class AuthService {
                 token: token.verificationCode,
             });
             return newUser;
-        } catch (error) {
-            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
-        }
     }
 
     async login(loginRequest: LoginRequest): Promise<LoginResponse> {
@@ -221,7 +219,7 @@ export class AuthService {
     async refresh(refreshToken: string): Promise<TokenResponse> {
         try {
             const decoded = this.jwtRefreshService.verify(refreshToken) as { sessionId: string, sub: string };
-            
+
             if (!decoded?.sessionId) {
                 throw new HttpException(
                     "Token không hợp lệ",
@@ -248,6 +246,13 @@ export class AuthService {
                     StatusCode.UNAUTHORIZED
                 );
             }
+
+            const accessTokenExp = 15 * 60;
+            await this.redisService.set(
+                createBlacklistKey(sessionData.accessTokenJTI),
+                'true',
+                accessTokenExp
+            )
 
             await this.redisService.del(createSessionKey(decoded.sessionId));
             return await this.generateTokens(user);

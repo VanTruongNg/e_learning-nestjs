@@ -11,9 +11,9 @@ import Redis from 'ioredis';
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) => {
         return new Redis({
-          host: configService.get('REDIS_HOST', 'localhost'),
-          port: configService.get('REDIS_PORT', 6379),
-          password: configService.get('REDIS_PASSWORD', 'redispassword'),
+          host: configService.get('REDIS_HOST'),
+          port: configService.get('REDIS_PORT'),
+          password: configService.get('REDIS_PASSWORD'),
           showFriendlyErrorStack: true,
         });
       },
