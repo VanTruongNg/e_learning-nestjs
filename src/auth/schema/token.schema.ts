@@ -21,11 +21,8 @@ export class Token extends Document {
     @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
     userId: Types.ObjectId;
 
-    @Prop({ required: true, default: false })
-    isUsed: boolean;
-
-    @Prop({ required: true, expires: 900 })
-    createdAt: Date;
+    @Prop({ required: true })
+    expiresAt: Date;
 }
 
 export const TokenSchema = SchemaFactory.createForClass(Token);

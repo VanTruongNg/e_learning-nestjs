@@ -1,31 +1,30 @@
-import { MailerModule } from '@nestjs-modules/mailer';
-import { mailConfig } from './../config/mail.config';
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { join } from 'path';
 import { MailService } from './mail.service';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { ConfigService } from '@nestjs/config';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { BullModule } from '@nestjs/bull';
+import { MailProcessor } from '../queue/processors/mail.processor';
+import { join } from 'path';
 
 @Module({
     imports: [
-        ConfigModule.forFeature(mailConfig),
         MailerModule.forRootAsync({
-            imports: [ConfigModule],
             useFactory: async (configService: ConfigService) => ({
                 transport: {
-                    host: configService.get('mail.host'),
-                    port: configService.get('mail.port'),
-                    secure: configService.get('mail.secure'),
+                    host: configService.get('SMTP_HOST'),
+                    port: configService.get('SMTP_PORT'),
+                    secure: configService.get('SMTP_SECURE'),
                     auth: {
-                        user: configService.get('mail.user'),
-                        pass: configService.get('mail.pass'),
+                        user: configService.get('SMTP_USER'),
+                        pass: configService.get('SMTP_PASSWORD'),
                     },
                 },
                 defaults: {
-                    from: `"No Reply" <${configService.get('mail.user')}>`,
+                    from: `"No Reply" <${configService.get('SMTP_USER')}>`,
                 },
                 template: {
-                    dir: join(__dirname, '..', 'mail', 'templates'), // đường dẫn tương đối từ thư mục dist
+                    dir: join(__dirname, 'templates'),
                     adapter: new HandlebarsAdapter(),
                     options: {
                         strict: true,
@@ -34,8 +33,20 @@ import { MailService } from './mail.service';
             }),
             inject: [ConfigService],
         }),
+        BullModule.registerQueue({
+            name: 'mail',
+            defaultJobOptions: {
+                removeOnComplete: true,
+                removeOnFail: 5000,
+                attempts: 3,
+                backoff: {
+                    type: 'exponential',
+                    delay: 1000,
+                },
+            },
+        }),
     ],
-    providers: [MailService],
+    providers: [MailService, MailProcessor],
     exports: [MailService],
     controllers: []
 })

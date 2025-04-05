@@ -3,6 +3,7 @@ import { UserDocument } from '../schema/user.schema';
 export interface SessionData {
     userId: string;
     refreshToken: string;
+    accessTokenJTI: string;
     createdAt: number;
 }
 

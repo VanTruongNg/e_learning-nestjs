@@ -1,7 +1,7 @@
 import { Controller, Get, Post, HttpException, HttpCode, Body, Req, UseGuards, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { StatusCode } from '../common/enums/api.enum';
-import { LoginRequest, RegisterRequest } from './dto/user.dto';
+import { ChangePasswordRequest, LoginRequest, RegisterRequest, ResendVerificationEmailRequest, ResetPasswordRequest, VefifyEmailRequest } from './dto/user.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiCookieAuth } from '@nestjs/swagger';
 import { Response, Request } from 'express';
@@ -23,20 +23,19 @@ export class AuthController {
     @HttpCode(201)
     @ApiOperation({ summary: 'Đăng ký người dùng mới' })
     @ApiBody({ type: RegisterRequest })
-    async register(@Body() user: RegisterRequest) {
-        const newUser = await this.authService.register(user);
-        return { data: newUser };
+    async register(@Body() body: RegisterRequest) {
+        const newUser = await this.authService.register(body);
+        return { 
+            data: newUser 
+        };
     }
 
     @Post('login')
     @HttpCode(200)
     @ApiOperation({ summary: 'Đăng nhập' })
     @ApiBody({ type: LoginRequest })
-    async login(
-        @Res({ passthrough: true }) response: Response,
-        @Body() loginRequest: LoginRequest
-    ) {
-        const { user, access_token, refresh_token } = await this.authService.login(loginRequest);
+    async login(@Body () body: LoginRequest, @Res({ passthrough: true }) response: Response) {
+        const { user, access_token, refresh_token } = await this.authService.login(body);
 
         response.cookie('refresh_token', refresh_token, {
             httpOnly: true,
@@ -53,6 +52,85 @@ export class AuthController {
         };
     }
 
+    @Get('google')
+    @UseGuards(AuthGuard('google'))
+    async GoogleAuth() {}
+
+    @Get('google/callback')
+    @UseGuards(AuthGuard('google'))
+    async googleAuthCallback(
+        @Req() req, 
+        @Res() res: Response
+    ) {
+        const { access_token, refresh_token } = await this.authService.googleLogin(req.user);
+        const frontendUrl = process.env.FRONTEND_URL
+
+        res.cookie('refresh_token', refresh_token, {
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        res.setHeader('Location', `${frontendUrl}/auth/callback?access_token=${access_token}`);
+        res.status(302);
+        res.end();
+    }
+
+    @Post('resend-verification-email')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Gửi lại email xác thực' })
+    @ApiBody({ type: ResendVerificationEmailRequest })
+    async resendVerificationEmail(@Body() body: ResendVerificationEmailRequest) {
+        const result = await this.authService.resendVerificationEmail(body.email);
+        return {
+            message: result.message
+        }
+    }
+
+    @Post('send-reset-password-email')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Gửi email đặt lại mật khẩu' })
+    @ApiBody({ type: String })
+    async sendResetPasswordEmail (@Body() body: ResendVerificationEmailRequest) {
+        const result = await this.authService.sendResetPassowrdToken(body.email);
+        return {
+            message: result.message
+        }
+    }
+
+    @Post('reset-password/:token')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Đặt lại mật khẩu' })
+    @ApiBody({ type: String })
+    async resetPassword(@Body() body: ResetPasswordRequest, @Req() req: Request) {
+        const { email, newPassword, confirmPassword } = body;
+        const { token } = req.params as { token: string };
+
+        if (!newPassword || !confirmPassword) {
+            throw new HttpException('New password and confirm password are required', StatusCode.BAD_REQUEST);
+
+        }
+
+        const result = await this.authService.resetPassword(token, email, newPassword);
+
+        return {
+            message: result.message
+        }
+    }
+
+    @Post('verify-email/:token')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Xác thực email' })
+    @ApiBody({ type: String })
+    async verifyEmail(@Body() body: VefifyEmailRequest, @Req() req: Request) {
+        const { token } = req.params as { token: string };
+        const result = await this.authService.verifyEmail(token, body.email);
+        return {
+            message: result.message
+        }
+    }
+
     @Post('refresh')
     @HttpCode(200)
     @ApiOperation({ summary: 'Làm mới access token' })
@@ -61,6 +139,9 @@ export class AuthController {
         @Res({ passthrough: true }) response: Response,
         @Cookies('refresh_token') refreshToken: string
     ) {
+        if (!refreshToken) {
+            throw new HttpException('Missing refresh token', StatusCode.BAD_REQUEST);
+        }
         const { access_token, refresh_token } = await this.authService.refresh(refreshToken);
 
         response.cookie('refresh_token', refresh_token, {
@@ -87,7 +168,10 @@ export class AuthController {
         @Cookies('refresh_token') refreshToken: string,
         @Req() req: AuthRequest
     ) {
-        const tokenToUse = refreshToken || req.body.refresh_token;
+        if (!refreshToken) {
+            throw new HttpException('Missing refresh token', StatusCode.BAD_REQUEST);
+        }
+        const tokenToUse = refreshToken
 
         if (!tokenToUse) {
             throw new HttpException('Missing refresh token', StatusCode.BAD_REQUEST);
@@ -122,10 +206,36 @@ export class AuthController {
             throw new HttpException('Unauthorized', StatusCode.UNAUTHORIZED);
         }
 
-        const data = req.user.userId ? await this.authService.me(req.user.userId) : null;
+        const data = await this.authService.me(req.user.userId)
         
         return {
-            data
+            data: data
         };
     }
+
+    @Post('change-password')
+    @UseGuards(AuthGuard('jwt'))
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Thay đổi mật khẩu' })
+    @ApiBearerAuth('access-token')
+    @ApiBody({ type: String })
+    async changePassword (
+        @Body() body: ChangePasswordRequest,
+        @Req() req: AuthRequest
+    ) {
+        const { currentPassword, newPassword, confirmPassword } = body;
+
+        if (newPassword !== confirmPassword) {
+            throw new HttpException('New password and confirm password do not match', StatusCode.BAD_REQUEST);
+        }
+
+        const userId = req.user.userId;
+        const result = await this.authService.changePassword(userId, currentPassword, newPassword);
+
+        return {
+            message: result.message
+        }
+    }
+
+
 }

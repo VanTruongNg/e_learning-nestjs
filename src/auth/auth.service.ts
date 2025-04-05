@@ -2,7 +2,7 @@ import { HttpException, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schema/user.schema';
 import { StatusCode } from 'src/common/enums/api.enum';
-import { LoginRequest, RegisterRequest } from './dto/user.dto';
+import { LoginRequest, RegisterRequest, UpdateProfileRequest } from './dto/user.dto';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ulid } from 'ulid';
@@ -11,7 +11,7 @@ import { LoginResponse, SessionData, TokenResponse, UsersResponse } from './inte
 import { createSessionKey, createBlacklistKey } from '../config/redis.config';
 import { MailService } from 'src/mail/mail.service';
 import { Token, TokenType } from './schema/token.schema';
-import { generateVerificationCode } from './utils/generate-token.util';
+import { generateToken } from './utils/generate-token.util';
 
 @Injectable()
 export class AuthService {
@@ -37,7 +37,8 @@ export class AuthService {
             
             const refreshPayload = {
                 sessionId,
-                sub: user._id.toString()
+                sub: user._id.toString(),
+                type: 'refresh'
             };
 
             const access_token = this.jwtAccessService.sign(accessPayload);
@@ -46,6 +47,7 @@ export class AuthService {
             const sessionData: SessionData = {
                 userId: user._id.toString(),
                 refreshToken: refresh_token,
+                accessTokenJTI: jti,
                 createdAt: Date.now()
             };
 
@@ -66,19 +68,40 @@ export class AuthService {
 
     private async createVerificationToken(user: UserDocument): Promise<{verificationCode: string}> {
         try {
-            const token = await generateVerificationCode();
+            const token = await generateToken();
 
             const newToken = new this.tokenSchema({
                 userId: user._id,
                 token: token,
                 type: TokenType.VERIFICATION,
                 createdAt: Date.now(),
-                isUsed: false
+                expiresAt: new Date(Date.now() + 15 * 60 * 1000)
             });
             await newToken.save();
 
             return {
                 verificationCode: token
+            };
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    private async createResetPasswordToken(user: UserDocument): Promise<{resetPasswordCode: string}> {
+        try {
+            const token = await generateToken();
+
+            const newToken = new this.tokenSchema({
+                userId: user._id,
+                token: token,
+                type: TokenType.RESET_PASSWORD,
+                createdAt: Date.now(),
+                expiresAt: new Date(Date.now() + 15 * 60 * 1000)
+            });
+            await newToken.save();
+
+            return {
+                resetPasswordCode: token
             };
         } catch (error) {
             throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
@@ -162,7 +185,7 @@ export class AuthService {
         try {
             const { email, password } = loginRequest;
 
-            const user = await this.userSchema.findOne({ email });
+            const user = await this.userSchema.findOne({ email: email });
             if (!user) {
                 throw new HttpException(
                     "Email hoặc mật khẩu không đúng",
@@ -189,10 +212,229 @@ export class AuthService {
         }
     }
 
+    async googleLogin(googleUser: any) {
+        try {
+            const { email, firstName, lastName, photo } = googleUser;
+            let user = await this.userSchema.findOne({ email });
+            
+            if (!user) {
+                user = new this.userSchema({
+                    email,
+                    username: `${firstName} ${lastName}`,
+                    isVerified: true,
+                    avatarUrl: photo,
+                    password: null,
+                });
+                await user.save();
+            } else {
+                if (!user.avatarUrl) {
+                    user.avatarUrl = photo;
+                }
+                if (user.isVerified === false) {
+                    user.isVerified = true;
+                }
+                await user.save();
+            }
+    
+            const tokens = await this.generateTokens(user);
+            
+            return {
+                user,
+                ...tokens
+            };
+        } catch (error) {
+            throw error instanceof HttpException 
+                ? error 
+                : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async verifyEmail(email: string, token: string): Promise<{message: string}> {
+        try {
+            const user = await this.userSchema.findOne({ email });
+            if (!user) {
+                throw new HttpException(
+                    "Người dùng không tồn tại",
+                    StatusCode.NOT_FOUND
+                );
+            }
+            if (user.isVerified) {
+                throw new HttpException(
+                    "Tài khoản đã được xác thực",
+                    StatusCode.BAD_REQUEST
+                );
+            }
+
+            const verificationToken = await this.tokenSchema.findOne({
+                userId: user._id,
+                token: token,
+                type: TokenType.VERIFICATION,
+                expiresAt: { $gt: Date.now() }
+            });
+            if (!verificationToken) {
+                throw new HttpException(
+                    "Mã xác thực không hợp lệ hoặc đã hết hạn",
+                    StatusCode.BAD_REQUEST
+                );
+            }
+            user.isVerified = true;
+            await user.save();
+
+            await this.tokenSchema.deleteMany({
+                userId: user._id,
+                type: TokenType.VERIFICATION,
+            });
+
+            return {
+                message: "Tài khoản đã được xác thực thành công"
+            }
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async resendVerificationEmail(email: string): Promise<{message: string}> {
+        try {
+            const user = await this.userSchema.findOne({ email });
+            if (!user) {
+                throw new HttpException(
+                    "Người dùng không tồn tại",
+                    StatusCode.NOT_FOUND
+                );
+            }
+
+            if (user.isVerified) {
+                throw new HttpException(
+                    "Tài khoản đã được xác thực",
+                    StatusCode.BAD_REQUEST
+                );
+            }
+
+            const token = await this.tokenSchema.findOne({
+                userId: user._id,
+                type: TokenType.VERIFICATION,
+                expiresAt: { $gt: Date.now() }
+            });
+
+            if (token) {
+                await this.mailService.sendVerificationEmail(user.email, {
+                    name: user.username,
+                    token: token.token,
+                });
+
+                return {
+                    message: "Email xác thực đã được gửi lại"
+                }
+            }
+
+            const newToken = await this.createVerificationToken(user);
+            await this.mailService.sendVerificationEmail(user.email, {
+                name: user.username,
+                token: newToken.verificationCode,
+            });
+
+            return {
+                message: "Email xác thực đã được gửi lại"
+            }
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async sendResetPassowrdToken(email: string): Promise<{message: string}> {
+        try {
+            const user = await this.userSchema.findOne({ email })
+            if (!user) {
+                throw new HttpException(
+                    "Người dùng không tồn tại",
+                    StatusCode.NOT_FOUND
+                );
+            }
+
+            const token = await this.tokenSchema.findOne({
+                userId: user._id,
+                type: TokenType.RESET_PASSWORD,
+                expiresAt: { $gt: Date.now() }
+            });
+
+            if (token) {
+                await this.mailService.sendResetPasswordEmail(user.email, {
+                    name: user.username,
+                    token: token.token,
+                });
+
+                return {
+                    message: "Email đặt lại mật khẩu đã được gửi lại"
+                }
+            }
+
+            const newToken = await this.createResetPasswordToken(user);
+            await this.mailService.sendResetPasswordEmail(user.email, {
+                name: user.username,
+                token: newToken.resetPasswordCode,
+            })
+
+            return {
+                message: "Email đặt lại mật khẩu đã được gửi lại"
+            }
+
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async resetPassword( token: string, email: string, newPassword: string): Promise<{message: string}> {
+        try {
+            const user = await this.userSchema.findOne({ email });
+            if (!user) {
+                throw new HttpException(
+                    "Người dùng không tồn tại",
+                    StatusCode.NOT_FOUND
+                );
+            }
+
+            const resetPasswordToken = await this.tokenSchema.findOne({
+                userId: user._id,
+                token: token,
+                type: TokenType.RESET_PASSWORD,
+                expiresAt: { $gt: Date.now() }
+            });
+            if (!resetPasswordToken) {
+                throw new HttpException(
+                    "Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn",
+                    StatusCode.BAD_REQUEST
+                );
+            }
+
+            const isOldPasswordSame = await user.comparePassword(newPassword);
+            if (isOldPasswordSame) {
+                throw new HttpException(
+                    "Mật khẩu mới không được giống mật khẩu cũ",
+                    StatusCode.BAD_REQUEST
+                );
+            }
+
+            user.password = newPassword;
+            user.isVerified = true;
+            await user.save();
+
+            await this.tokenSchema.deleteMany({
+                userId: user._id,
+                type: TokenType.RESET_PASSWORD,
+            });
+
+            return {
+                message: "Mật khẩu đã được đặt lại thành công"
+            }
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
     async refresh(refreshToken: string): Promise<TokenResponse> {
         try {
             const decoded = this.jwtRefreshService.verify(refreshToken) as { sessionId: string, sub: string };
-            
+
             if (!decoded?.sessionId) {
                 throw new HttpException(
                     "Token không hợp lệ",
@@ -219,6 +461,13 @@ export class AuthService {
                     StatusCode.UNAUTHORIZED
                 );
             }
+
+            const accessTokenExp = 15 * 60;
+            await this.redisService.set(
+                createBlacklistKey(sessionData.accessTokenJTI),
+                'true',
+                accessTokenExp
+            )
 
             await this.redisService.del(createSessionKey(decoded.sessionId));
             return await this.generateTokens(user);
@@ -264,6 +513,60 @@ export class AuthService {
                     timeToExp
                 );
             }
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async changePassword (userID: string, oldPassword: string, newPassword: string): Promise<{message: string}> {
+        try {
+            const user = await this.userSchema.findById(userID).exec();
+            if (!user) {
+                throw new HttpException(
+                    "Người dùng không tồn tại",
+                    StatusCode.NOT_FOUND
+                );
+            }
+
+            const isPasswordValid = await user.comparePassword(oldPassword);
+            if (!isPasswordValid) {
+                throw new HttpException(
+                    "Mật khẩu cũ không đúng",
+                    StatusCode.UNAUTHORIZED
+                );
+            }
+
+            user.password = newPassword;
+            await user.save();
+
+            return {
+                message: "Đổi mật khẩu thành công"
+            }
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async updateProfile (userId: string, data: UpdateProfileRequest): Promise<UserDocument> {
+        try {
+            const user = await this.userSchema.findById(userId).exec();
+            if (!user) {
+                throw new HttpException(
+                    "Người dùng không tồn tại",
+                    StatusCode.NOT_FOUND
+                );
+            }
+
+            if (data.username) {
+                user.username = data.username;
+            }
+            
+            if (data.avatarUrl) {
+                user.avatarUrl = data.avatarUrl;
+            }
+
+            await user.save();
+            return user;
         } catch (error) {
             throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
         }
