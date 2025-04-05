@@ -11,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { RedisModule } from 'src/redis/redis.module';
 import { MailModule } from 'src/mail/mail.module';
 import { GoogleStrategy } from './strategies/googe.strategy';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -20,7 +21,8 @@ import { GoogleStrategy } from './strategies/googe.strategy';
       { name: Token.name, schema: TokenSchema }
     ]),
     RedisModule,
-    MailModule
+    MailModule,
+    CloudinaryModule
   ],
   controllers: [
     AuthController,

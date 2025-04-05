@@ -10,6 +10,7 @@ import { CourseModule } from './course/course.module';
 import { LessonModule } from './lesson/lesson.module';
 import { QuizModule } from './quiz/quiz.module';
 import { QueueModule } from './queue/queue.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -33,7 +34,8 @@ import { QueueModule } from './queue/queue.module';
     CourseModule,
     LessonModule,
     QuizModule,
-    QueueModule
+    QueueModule,
+    CloudinaryModule
   ],
   providers: [AppService],
 })

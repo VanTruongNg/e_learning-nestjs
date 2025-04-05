@@ -7,8 +7,6 @@ export enum CourseLevel {
     ADVANCED = 'advanced'
 }
 
-export type CourseDocument = Course & Document;
-
 @Schema({
     timestamps: true,
 })
@@ -16,14 +14,20 @@ export class Course extends Document {
     @Prop({ required: true, index: true })
     title: string;
 
-    @Prop({ required: true })
+    @Prop({ required: false })
     description: string;
 
     @Prop({ required: true })
     price: number;
 
+    @Prop({ required: false, nullable: true })
+    thumbnailUrl: string;
+
     @Prop({ type: String, enum: CourseLevel, default: CourseLevel.BEGINNER })
     level: CourseLevel;
+
+    @Prop({ type: [{ type: Types.ObjectId, ref: 'Lesson' }], default: [] })
+    lessons: Types.ObjectId[];
 
     @Prop({ type: Boolean, default: false })
     isDeleted: boolean;
