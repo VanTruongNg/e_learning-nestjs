@@ -10,18 +10,20 @@ import { RedisService } from '../redis/redis.service';
 import { LoginResponse, SessionData, TokenResponse, UsersResponse } from './interfaces/auth.interface';
 import { createSessionKey, createBlacklistKey } from '../config/redis.config';
 import { MailService } from 'src/mail/mail.service';
-import { Token, TokenType } from './schema/token.schema';
+import { Token, TokenDocument, TokenType } from './schema/token.schema';
 import { generateToken } from './utils/generate-token.util';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class AuthService {
     constructor(
         @InjectModel(User.name) private readonly userSchema: Model<UserDocument>,
-        @InjectModel(Token.name) private readonly tokenSchema: Model<Token>,
+        @InjectModel(Token.name) private readonly tokenSchema: Model<TokenDocument>,
         @Inject('JWT_ACCESS_SERVICE') private readonly jwtAccessService: JwtService,
         @Inject('JWT_REFRESH_SERVICE') private readonly jwtRefreshService: JwtService,
         private readonly redisService: RedisService,
         private readonly mailService: MailService,
+        private readonly cloudinaryService: CloudinaryService,
     ){}
 
     private async generateTokens(user: UserDocument): Promise<TokenResponse> {
@@ -165,12 +167,6 @@ export class AuthService {
             await newUser.save();
 
             const token = await this.createVerificationToken(newUser);
-            if (!token) {
-                throw new HttpException(
-                    "Lỗi tạo mã xác thực",
-                    StatusCode.INTERNAL_SERVER
-                );
-            }
             await this.mailService.sendVerificationEmail(newUser.email, {
                 name: newUser.username,
                 token: token.verificationCode,
@@ -197,6 +193,13 @@ export class AuthService {
             if (!isPasswordValid) {
                 throw new HttpException(
                     "Email hoặc mật khẩu không đúng",
+                    StatusCode.BAD_REQUEST
+                );
+            }
+
+            if (!user.isVerified) {
+                throw new HttpException(
+                    "Tài khoản chưa được xác thực",
                     StatusCode.UNAUTHORIZED
                 );
             }
@@ -561,8 +564,12 @@ export class AuthService {
                 user.username = data.username;
             }
             
-            if (data.avatarUrl) {
-                user.avatarUrl = data.avatarUrl;
+            if (data.avatar) {
+                const url = await this.cloudinaryService.uploadFileAsync(data.avatar, {
+                    folder: 'avatars',
+                    fileName: userId
+                });
+                user.avatarUrl = url;
             }
 
             await user.save();

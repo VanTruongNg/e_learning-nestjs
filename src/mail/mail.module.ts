@@ -4,8 +4,8 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { BullModule } from '@nestjs/bull';
-import { MailProcessor } from '../queue/processors/mail.processor';
 import { join } from 'path';
+import { MailProcessor } from 'src/queue/processors/mail.processor';
 
 @Module({
     imports: [
@@ -36,14 +36,19 @@ import { join } from 'path';
         BullModule.registerQueue({
             name: 'mail',
             defaultJobOptions: {
-                removeOnComplete: true,
-                removeOnFail: 5000,
+                removeOnComplete: {
+                    age: 60,
+                    count: 100
+                },
+                removeOnFail: {
+                    age: 60 * 5
+                },
                 attempts: 3,
                 backoff: {
                     type: 'exponential',
-                    delay: 1000,
-                },
-            },
+                    delay: 1000
+                }
+            }
         }),
     ],
     providers: [MailService, MailProcessor],

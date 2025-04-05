@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from "class-validator";
+import { IsEmail, IsNotEmpty, IsString, MinLength, ValidateIf } from "class-validator";
 
 export class RegisterRequest {
     @IsNotEmpty({ message: "Username không được để trống" })
@@ -73,10 +73,10 @@ export class ChangePasswordRequest {
 
 export class UpdateProfileRequest {
     @IsString({ message: "Username phải là chuỗi" })
+    @ValidateIf((o) => o.username !== undefined)
     readonly username?: string;
-
-    @IsString({ message: "Avatar URL phải là chuỗi" })
-    readonly avatarUrl?: string;
+    
+    avatar?: Express.Multer.File;
 }
 
 export class VefifyEmailRequest {

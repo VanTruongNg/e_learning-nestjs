@@ -1,11 +1,12 @@
-import { Controller, Get, Post, HttpException, HttpCode, Body, Req, UseGuards, Res } from '@nestjs/common';
+import { Controller, Get, Post, HttpException, HttpCode, Body, Req, UseGuards, Res, Put, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { StatusCode } from '../common/enums/api.enum';
-import { ChangePasswordRequest, LoginRequest, RegisterRequest, ResendVerificationEmailRequest, ResetPasswordRequest, VefifyEmailRequest } from './dto/user.dto';
+import { ChangePasswordRequest, LoginRequest, RegisterRequest, ResendVerificationEmailRequest, ResetPasswordRequest, UpdateProfileRequest, VefifyEmailRequest } from './dto/user.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiCookieAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiCookieAuth, ApiConsumes } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { Cookies } from '../common/decorators/cookies.decorator';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 interface AuthRequest extends Request {
     user?: any;
@@ -24,6 +25,9 @@ export class AuthController {
     @ApiOperation({ summary: 'Đăng ký người dùng mới' })
     @ApiBody({ type: RegisterRequest })
     async register(@Body() body: RegisterRequest) {
+        if (body.password !== body.confirmPassword) {
+            throw new HttpException('Email và xác nhận email không khớp', StatusCode.BAD_REQUEST);
+        }
         const newUser = await this.authService.register(body);
         return { 
             data: newUser 
@@ -125,7 +129,7 @@ export class AuthController {
     @ApiBody({ type: String })
     async verifyEmail(@Body() body: VefifyEmailRequest, @Req() req: Request) {
         const { token } = req.params as { token: string };
-        const result = await this.authService.verifyEmail(token, body.email);
+        const result = await this.authService.verifyEmail(body.email, token);
         return {
             message: result.message
         }
@@ -237,5 +241,30 @@ export class AuthController {
         }
     }
 
+    @Put('update-profile')
+    @UseGuards(AuthGuard('jwt'))
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Cập nhật thông tin người dùng' })
+    @ApiBearerAuth('access-token')
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({ type: UpdateProfileRequest })
+    @UseInterceptors(FileInterceptor('avatar'))
+    async updateProfile (
+        @Body() body: UpdateProfileRequest,
+        @UploadedFile() avatar: Express.Multer.File,
+        @Req() req: AuthRequest
+    ) {
+        const userId = req.user.userId;
+        const data = {
+            ...body,
+            avatar
+        };
+        const user = await this.authService.updateProfile(userId, data);
 
+        return {
+            data: {
+                user
+            }
+        }
+    }
 }

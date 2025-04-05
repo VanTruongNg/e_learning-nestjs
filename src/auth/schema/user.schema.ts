@@ -27,7 +27,7 @@ export type UserDocument = User & Document & {
         }
     }
 })
-export class User extends Document {
+export class User {
     @Prop({ required: true, index: true })
     username: string;
 
