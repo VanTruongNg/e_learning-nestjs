@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { SendMailJob } from '../queue/processors/mail.processor';
 
 @Injectable()
 export class MailService {
     constructor(
+        @InjectQueue('mail') private readonly mailQueue: Queue<SendMailJob>,
         private mailerService: MailerService,
         private configService: ConfigService,
     ) {}
@@ -14,7 +18,7 @@ export class MailService {
         data: { name: string; token: string }
     ): Promise<boolean> {
         try {
-            await this.mailerService.sendMail({
+            await this.mailQueue.add('send', {
                 to,
                 subject: 'Xác thực tài khoản',
                 template: 'verification',
@@ -25,7 +29,7 @@ export class MailService {
             });
             return true;
         } catch (error) {
-            console.error('Send mail error:', error);
+            console.error('Add mail to queue error:', error);
             return false;
         }
     }
@@ -35,7 +39,7 @@ export class MailService {
         data: { name: string; token: string }
     ): Promise<boolean> {
         try {
-            await this.mailerService.sendMail({
+            await this.mailQueue.add('send', {
                 to,
                 subject: 'Đặt lại mật khẩu',
                 template: 'reset-password',
@@ -46,7 +50,7 @@ export class MailService {
             });
             return true;
         } catch (error) {
-            console.error('Send mail error:', error);
+            console.error('Add mail to queue error:', error);
             return false;
         }
     }

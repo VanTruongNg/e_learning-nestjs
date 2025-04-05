@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MailModule } from './mail/mail.module';
-import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -10,6 +9,7 @@ import { RedisModule } from './redis/redis.module';
 import { CourseModule } from './course/course.module';
 import { LessonModule } from './lesson/lesson.module';
 import { QuizModule } from './quiz/quiz.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -32,9 +32,9 @@ import { QuizModule } from './quiz/quiz.module';
     MailModule,
     CourseModule,
     LessonModule,
-    QuizModule
+    QuizModule,
+    QueueModule
   ],
-  controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
