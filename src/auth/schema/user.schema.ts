@@ -58,7 +58,7 @@ export class User {
     enrolledCourses: Types.ObjectId[];
 
     @Prop({ type: [{ type: Types.ObjectId, ref: 'Course' }] })
-    completedCourses: Types.ObjectId[];
+    boughtCourses: Types.ObjectId[];
 
     @Prop({ type: Boolean, default: false })
     isDeleted: boolean;

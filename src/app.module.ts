@@ -11,6 +11,9 @@ import { LessonModule } from './lesson/lesson.module';
 import { QuizModule } from './quiz/quiz.module';
 import { QueueModule } from './queue/queue.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { PaymentModule } from './payment/payment.module';
+import { LectureModule } from './lecture/lecture.module';
+import { QuizQuestionModule } from './quiz-question/quiz-question.module';
 
 @Module({
   imports: [
@@ -35,7 +38,10 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     LessonModule,
     QuizModule,
     QueueModule,
-    CloudinaryModule
+    CloudinaryModule,
+    PaymentModule,
+    LectureModule,
+    QuizQuestionModule
   ],
   providers: [AppService],
 })

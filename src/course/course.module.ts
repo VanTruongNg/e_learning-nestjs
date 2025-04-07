@@ -14,5 +14,6 @@ import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
   ],
   controllers: [CourseController],
   providers: [CourseService],
+  exports: [MongooseModule, CourseService]
 })
 export class CourseModule {}

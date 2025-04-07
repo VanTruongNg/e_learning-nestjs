@@ -1,10 +1,9 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
 
-export enum QuestionType {
-    MULTIPLE_CHOICE = 'multiple_choice',
-    SINGLE_CHOICE = 'single_choice',
-    TRUE_FALSE = 'true_false'
+export enum QuizStatus {
+    DRAFT = 'draft',
+    PUBLISHED = 'published'
 }
 
 export type QuizDocument = Quiz & Document;
@@ -25,26 +24,8 @@ export class Quiz extends Document {
     @Prop({ type: Number, required: true, default: 70 })
     passingScore: number;
 
-    @Prop({ type: [{
-        questionText: { type: String, required: true },
-        type: { type: String, enum: QuestionType, default: QuestionType.SINGLE_CHOICE },
-        options: [{
-            text: { type: String, required: true },
-            isCorrect: { type: Boolean, required: true }
-        }],
-        explanation: { type: String },
-        points: { type: Number, default: 1 }
-    }], required: true })
-    questions: Array<{
-        questionText: string;
-        type: QuestionType;
-        options: Array<{
-            text: string;
-            isCorrect: boolean;
-        }>;
-        explanation?: string;
-        points: number;
-    }>;
+    @Prop([{ type: Types.ObjectId, ref: 'QuizQuestion' }])
+    questions: Types.ObjectId[];
 
     @Prop({ type: Types.ObjectId, ref: 'Lesson', required: true, index: true })
     lessonId: Types.ObjectId;
@@ -54,6 +35,9 @@ export class Quiz extends Document {
 
     @Prop({ type: Number, default: 0 })
     averageScore: number;
+
+    @Prop({ type: String, enum: QuizStatus, default: QuizStatus.DRAFT })
+    status: QuizStatus;
 
     @Prop({ type: Boolean, default: false })
     isDeleted: boolean;
