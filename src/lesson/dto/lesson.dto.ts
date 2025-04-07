@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import { IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
 import { Types } from "mongoose";
 
@@ -15,7 +16,8 @@ export class CreateLessonDto {
 
     @ApiProperty()
     @IsNotEmpty()
-    courseId: string;
+    @Type(() => Types.ObjectId)
+    courseId: Types.ObjectId;
 }
 
 export class UpdateLessonDto {

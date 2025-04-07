@@ -14,7 +14,7 @@ export class Lesson extends Document {
     @Prop({ type: Number, required: true })
     order: number;
 
-    @Prop([{ type: Types.ObjectId, ref: 'Lecture' }, { default: [] }])
+    @Prop({ type: [{ type: Types.ObjectId, ref: 'Lecture' }], default: [] })
     lectures: Types.ObjectId[];
 
     @Prop({ type: Types.ObjectId, ref: 'Course', required: true, index: true })

@@ -43,7 +43,7 @@ export class CourseService {
 
     async getCourseByID(id: Types.ObjectId): Promise<Course> {
         try {
-            const course = await this.courseSchema.findById(id).populate("lessons", "title description lectures").exec();
+            const course = await this.courseSchema.findById(id).populate("lessons").exec();
             if (!course) {
                 throw new HttpException("Khóa học không tồn tại", StatusCode.NOT_FOUND);
             }

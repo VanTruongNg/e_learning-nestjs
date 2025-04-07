@@ -34,12 +34,14 @@ export class AuthService {
             const accessPayload = {
                 sub: user._id.toString(),
                 email: user.email,
+                role: user.role,
                 jti
             };
             
             const refreshPayload = {
                 sessionId,
                 sub: user._id.toString(),
+                role: user.role,
                 type: 'refresh'
             };
 

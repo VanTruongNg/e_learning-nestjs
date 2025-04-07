@@ -4,7 +4,7 @@ import { MailModule } from './mail/mail.module';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { TransactionModule } from './transaction/transaction.module';
+import { TransactionModule } from './purchase-history/purchase-history.module';
 import { RedisModule } from './redis/redis.module';
 import { CourseModule } from './course/course.module';
 import { LessonModule } from './lesson/lesson.module';

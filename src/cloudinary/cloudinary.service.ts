@@ -21,8 +21,8 @@ export class CloudinaryService {
         });
     }
 
-    private predictCloudinaryUrl(folder: string, fileName: string): string {
-        return `https://res.cloudinary.com/${this.cloudName}/image/upload/v1/${folder}/${fileName}`;
+    private predictCloudinaryUrl(folder: string, fileName: string, resourceType: 'image' | 'video' = 'image'): string {
+        return `https://res.cloudinary.com/${this.cloudName}/${resourceType}/upload/v1/${folder}/${fileName}`;
     }
 
     async uploadFileAsync(
@@ -30,6 +30,7 @@ export class CloudinaryService {
         options?: {
           folder?: string;
           fileName?: string;
+          resourceType?: 'image' | 'video';
         }
     ): Promise<string> {
         await this.uploadQueue.add('media', {
@@ -39,7 +40,8 @@ export class CloudinaryService {
     
         const fileName = options?.fileName || file.originalname;
         const folder = options?.folder || '';
-        return this.predictCloudinaryUrl(folder, fileName);
+        const resourceType = options?.resourceType || 'image';
+        return this.predictCloudinaryUrl(folder, fileName, resourceType);
     }
 
     async uploadFile(
@@ -47,13 +49,14 @@ export class CloudinaryService {
         options?: {
             folder?: string;
             fileName?: string;
+            resourceType?: 'image' | 'video';
         }
     ): Promise<CloudinaryResponse> {
         const b64 = Buffer.from(file.buffer).toString('base64');
         const dataURI = `data:${file.mimetype};base64,${b64}`;
     
         const uploadOptions: UploadApiOptions = {
-            resource_type: 'auto' as 'auto',
+            resource_type: options?.resourceType || 'auto',
             ...(options?.folder && { folder: options.folder }),
             ...(options?.fileName && {
                 public_id: options.fileName,

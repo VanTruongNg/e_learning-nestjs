@@ -27,8 +27,9 @@ export class Lecture extends Document {
         type: {
             text: { type: String },
             videoUrl: { type: String },
-            duration: { type: Number },
-        }
+            duration: { type: Number }
+        },
+        _id: false
     })
     content: {
         text?: string;
@@ -45,7 +46,8 @@ export class Lecture extends Document {
             quizId: { type: Types.ObjectId, ref: 'Quiz' },
             requiredToComplete: { type: Boolean, default: true },
             minScore: { type: Number, default: 70 }
-        }
+        },
+        _id: false
     })
     endQuiz?: {
         isEnabled: boolean;

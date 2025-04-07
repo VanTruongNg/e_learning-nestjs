@@ -1,10 +1,14 @@
-import { Body, Controller, Get, HttpException, Param, Post, Query, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Get, HttpException, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { ApiBody, ApiConsumes, ApiOperation } from "@nestjs/swagger";
 import { CourseService } from "./course.service";
 import { CreateCourseDto, GetCoursesDto } from "./dto/course.dto";
 import { StatusCode } from "src/common/enums/api.enum";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Types } from "mongoose";
+import { AuthGuard } from "@nestjs/passport";
+import { Role } from "src/auth/schema/user.schema";
+import { RolesGuard } from "src/auth/guards/roles.guard";
+import { Roles } from "src/auth/decorators/roles.decorator";
 
 @Controller("course")
 export class CourseController {
@@ -44,6 +48,8 @@ export class CourseController {
     }
 
     @Post()
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    @Roles(Role.ADMIN)
     @ApiOperation({ summary: "Tạo khóa học" })
     @ApiConsumes('multipart/form-data')
     @ApiBody({ type: CreateCourseDto })

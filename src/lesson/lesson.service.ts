@@ -13,22 +13,24 @@ export class LessonService {
         @InjectModel(Course.name) private readonly courseSchame: Model<Course>,
     ) {}
 
-    async getLessonsByCourseId(courseId: Types.ObjectId): Promise<Lesson[]> {
+    async getLessonById(lessonId: Types.ObjectId): Promise<Lesson> {
         try {
-            const lessons = await this.lessonSchema
-                .find({ 
-                    courseId,
-                    isDeleted: false 
-                })
-                .sort({ order: 1 })
+            const lesson = await this.lessonSchema
+                .findById(lessonId)
+                .populate('lectures')
                 .exec();
-            return lessons;
+
+            if (!lesson) {
+                throw new HttpException("Bài học không tồn tại", StatusCode.NOT_FOUND);
+            }
+                
+            return lesson;
         } catch (error) {
             throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
         }
     }
 
-    async createLesson(data: { title: string; description: string; courseId: Types.ObjectId }): Promise<Lesson> {
+    async createLesson(data: CreateLessonDto): Promise<Lesson> {
         try {
             const { title, description, courseId } = data;
             const course = await this.courseSchame.findById(courseId).exec();
@@ -92,3 +94,4 @@ export class LessonService {
         }
     }
 }
+
