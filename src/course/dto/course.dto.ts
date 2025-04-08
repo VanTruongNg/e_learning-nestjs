@@ -38,3 +38,25 @@ export class CreateCourseDto {
 
   thumbnail?: Express.Multer.File;
 }
+
+export class UpdateCourseDto {
+  @IsOptional()
+  @IsString({ message: 'Tên khóa học phải là chuỗi ký tự' })
+  title?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Mô tả khóa học phải là chuỗi ký tự' })
+  description?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'Giá khóa học phải là số nguyên' })
+  @Min(0, { message: 'Giá khóa học phải lớn hơn hoặc bằng 0' })
+  price?: number;
+
+  @IsOptional()
+  @IsEnum(CourseLevel, { message: 'Cấp độ khóa học không hợp lệ. Chỉ chấp nhận: beginner, intermediate, advanced' })
+  level?: CourseLevel;
+
+  thumbnail?: Express.Multer.File;
+}
