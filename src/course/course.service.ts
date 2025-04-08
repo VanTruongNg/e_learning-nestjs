@@ -4,7 +4,7 @@ import { Course } from './schema/course.schema';
 import { Model, Types } from 'mongoose';
 import { StatusCode } from 'src/common/enums/api.enum';
 import { CourseResponse } from './interfaces/course-response.interface';
-import { CreateCourseDto, GetCoursesDto } from './dto/course.dto';
+import { CreateCourseDto, GetCoursesDto, UpdateCourseDto } from './dto/course.dto';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
@@ -21,7 +21,7 @@ export class CourseService {
             const skip = (page - 1) * limit;
 
             const [courses, total] = await Promise.all([
-                this.courseSchema.find().skip(skip).limit(limit).exec(),
+                this.courseSchema.find({ isDeleted: false}).skip(skip).limit(limit).exec(),
                 this.courseSchema.countDocuments()
             ]);
 
@@ -97,6 +97,46 @@ export class CourseService {
             newCourse.thumbnailUrl = url;
 
             return await newCourse.save();
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async updateCourse(id: Types.ObjectId, courseData: UpdateCourseDto): Promise<Course> {
+        try {
+            const course = await this.courseSchema.findById(id);
+            if (!course) {
+                throw new HttpException("Khóa học không tồn tại", StatusCode.NOT_FOUND);
+            }
+
+            if (courseData.title) course.title = courseData.title;
+            if (courseData.description) course.description = courseData.description;
+            if (courseData.price !== undefined) course.price = courseData.price;
+            if (courseData.level) course.level = courseData.level;
+
+            if (courseData.thumbnail) {
+                const url = await this.cloudinaryService.uploadFileAsync(courseData.thumbnail, {
+                    folder: 'courses',
+                    fileName: course._id.toString()
+                });
+                course.thumbnailUrl = url;
+            }
+
+            return await course.save();
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async deleteCourse(id: Types.ObjectId): Promise<void> {
+        try {
+            const course = await this.courseSchema.findById(id);
+            if (!course) {
+                throw new HttpException("Khóa học không tồn tại", StatusCode.NOT_FOUND);
+            }
+
+            course.isDeleted = true;
+            await course.save();
         } catch (error) {
             throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
         }

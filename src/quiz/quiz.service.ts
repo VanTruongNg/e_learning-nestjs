@@ -2,9 +2,10 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Quiz } from './schema/quiz.schema';
-import { CreateQuizDto, UpdateQuizDto } from './dto/quiz.dto';
+import { CreateQuizDto, GetQuizDto, UpdateQuizDto } from './dto/quiz.dto';
 import { StatusCode } from 'src/common/enums/api.enum';
 import { Lecture } from 'src/lecture/schema/lecture.schema';
+import { QuizResponseDto } from './interface/quiz-response';
 
 @Injectable()
 export class QuizService {
@@ -12,6 +13,34 @@ export class QuizService {
         @InjectModel(Quiz.name) private readonly quizSchema: Model<Quiz>,
         @InjectModel(Lecture.name) private readonly lectureSchema: Model<Lecture>,
     ) {}
+
+    async getAllQuizzes(queryDto: GetQuizDto): Promise<QuizResponseDto> {
+        try {
+            const page = queryDto.page || 1;
+            const limit = queryDto.limit || 12;
+            const skip = (page - 1) * limit;
+
+            const [quizzes, total] = await Promise.all([
+                this.quizSchema.find({ isDeleted: false }).skip(skip).limit(limit).exec(),
+                this.quizSchema.countDocuments({ isDeleted: false })
+            ]);
+            const totalPages = Math.ceil(total / limit);
+
+            return {
+                quizzes,
+                meta: {
+                    total,
+                    page,
+                    limit,
+                    totalPages
+                }
+            };
+        } catch (error) {
+            throw error instanceof HttpException 
+                ? error 
+                : new HttpException('Lỗi không xác định', StatusCode.INTERNAL_SERVER);
+        }
+    }
 
     async createQuiz(data: CreateQuizDto): Promise<Quiz> {
         try {

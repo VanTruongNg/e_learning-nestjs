@@ -1,7 +1,7 @@
-import { Body, Controller, Get, HttpException, Param, Post, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpException, Param, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { ApiBody, ApiConsumes, ApiOperation } from "@nestjs/swagger";
 import { CourseService } from "./course.service";
-import { CreateCourseDto, GetCoursesDto } from "./dto/course.dto";
+import { CreateCourseDto, GetCoursesDto, UpdateCourseDto } from "./dto/course.dto";
 import { StatusCode } from "src/common/enums/api.enum";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Types } from "mongoose";
@@ -45,6 +45,39 @@ export class CourseController {
         const courseId = new Types.ObjectId(id);
         const course = await this.courseService.getCourseByID(courseId);
         return course;
+    }
+
+    @Patch(":id")
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    @Roles(Role.ADMIN)
+    @ApiOperation({ summary: "Cập nhật thông tin khóa học" })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({ type: UpdateCourseDto })
+    @UseInterceptors(FileInterceptor('thumbnail'))
+    async updateCourse(
+        @Param("id") id: string,
+        @Body() courseData: Omit<UpdateCourseDto, 'thumbnail'>,
+        @UploadedFile() thumbnail?: Express.Multer.File
+    ) {
+        const courseId = new Types.ObjectId(id);
+        const course = {
+            ...courseData,
+            thumbnail
+        };
+        const updatedCourse = await this.courseService.updateCourse(courseId, course);
+        return updatedCourse;
+    }
+    
+    @Delete(":id")
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    @Roles(Role.ADMIN)
+    @ApiOperation({ summary: "Xóa khóa học" })
+    async deleteCourse(@Param("id") id: string) {
+        const courseId = new Types.ObjectId(id);
+        await this.courseService.deleteCourse(courseId);
+        return {
+            message: "Xóa khóa học thành công"
+        };
     }
 
     @Post()

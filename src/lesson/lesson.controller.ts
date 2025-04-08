@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
 import { LessonService } from "./lesson.service";
 import { StatusCode } from "src/common/enums/api.enum";
-import { CreateLessonDto, UpdateLessonDto } from "./dto/lesson.dto";
+import { CreateLessonDto, GetLessonsDto, UpdateLessonDto } from "./dto/lesson.dto";
 import { AuthGuard } from "@nestjs/passport";
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Types } from "mongoose";
@@ -13,6 +13,15 @@ import { Role } from "src/auth/schema/user.schema";
 @Controller("lesson")
 export class LessonController {
     constructor(private readonly lessonService: LessonService) {}
+
+    @Get()
+    @UseGuards(AuthGuard("jwt"), RolesGuard)
+    @Roles(Role.ADMIN)
+    @ApiOperation({ summary: "Lấy tất cả bài học" })
+    async getAllLessons(@Query() query: GetLessonsDto) {
+        const lessons = await this.lessonService.getAllLessons(query);
+        return lessons;
+    }
 
     @Get("/:id")
     async getLessonsId(@Param("id") lessonId: string) {

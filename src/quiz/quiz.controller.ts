@@ -1,15 +1,25 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { QuizService } from './quiz.service';
-import { CreateQuizDto, UpdateQuizDto } from './dto/quiz.dto';
+import { CreateQuizDto, GetQuizDto, UpdateQuizDto } from './dto/quiz.dto';
 import { Types } from 'mongoose';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from 'src/auth/schema/user.schema';
+import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('quiz')
 export class QuizController {
     constructor(private readonly quizService: QuizService) {}
+
+    @Get()
+    @UseGuards(AuthGuard("jwt"), RolesGuard)
+    @Roles(Role.ADMIN)
+    @ApiOperation({ summary: "Lấy tất cả bài học" })
+    async getAllLessons(@Query() query: GetQuizDto) {
+        const lessons = await this.quizService.getAllQuizzes(query);
+        return lessons;
+    }
 
     @Post()
     @UseGuards(AuthGuard('jwt'), RolesGuard)

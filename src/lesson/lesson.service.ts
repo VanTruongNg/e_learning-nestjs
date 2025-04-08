@@ -1,10 +1,11 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Lesson, LessonSchema } from './schema/lesson.schema';
+import { Lesson } from './schema/lesson.schema';
 import { Model, Types } from 'mongoose';
 import { StatusCode } from 'src/common/enums/api.enum';
-import { CreateLessonDto, UpdateLessonDto } from './dto/lesson.dto';
+import { CreateLessonDto, GetLessonsDto, UpdateLessonDto } from './dto/lesson.dto';
 import { Course } from 'src/course/schema/course.schema';
+import { LessonResponseDto } from './interface/lesson-response.interface';
 
 @Injectable()
 export class LessonService {
@@ -12,6 +13,34 @@ export class LessonService {
         @InjectModel(Lesson.name) private readonly lessonSchema: Model<Lesson>,
         @InjectModel(Course.name) private readonly courseSchame: Model<Course>,
     ) {}
+
+    async getAllLessons(queryDto: GetLessonsDto): Promise<LessonResponseDto> {
+        try {
+            const page = queryDto.page || 1;
+            const limit = queryDto.limit || 12;
+            const skip = (page - 1) * limit;
+
+            const [lessons, total] = await Promise.all([
+                this.lessonSchema.find({ isDeleted: false }).skip(skip).limit(limit).exec(),
+                this.lessonSchema.countDocuments()
+            ]);
+
+            const totalPages = Math.ceil(total / limit);
+
+            return {
+                lessons,
+                meta: {
+                    total,
+                    page,
+                    limit,
+                    totalPages
+                }
+            };
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
 
     async getLessonById(lessonId: Types.ObjectId): Promise<Lesson> {
         try {

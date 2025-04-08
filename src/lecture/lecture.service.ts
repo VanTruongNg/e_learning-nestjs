@@ -5,7 +5,8 @@ import { Model, Types } from 'mongoose';
 import { Lesson } from 'src/lesson/schema/lesson.schema';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { StatusCode } from 'src/common/enums/api.enum';
-import { CreateLectureDto, VideoUploadResponse } from './dto/lecture.dto';
+import { CreateLectureDto, GetLectureDto, UpdateLectureDto, VideoUploadResponse } from './dto/lecture.dto';
+import { LectureResponseDto } from './interface/lecture-response.interface';
 
 @Injectable()
 export class LectureService {
@@ -14,6 +15,34 @@ export class LectureService {
         @InjectModel(Lesson.name) private readonly lessonSchema: Model<Lesson>,
         private readonly cloudinaryService: CloudinaryService,
     ) {}
+
+    async getAllLectures(queryDto: GetLectureDto): Promise<LectureResponseDto> {
+        try {
+            const page = queryDto.page || 1;
+            const limit = queryDto.limit || 12;
+            const skip = (page - 1) * limit;
+
+            const [lectures, total] = await Promise.all([
+                this.lectureSchema.find({ isDeleted: false }).skip(skip).limit(limit).exec(),
+                this.lectureSchema.countDocuments()
+            ]);
+
+            const totalPages = Math.ceil(total / limit);
+
+            return {
+                lectures,
+                meta: {
+                    total,
+                    page,
+                    limit,
+                    totalPages
+                }
+            };
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
 
     async getLecturesByLessonId(lectureId: Types.ObjectId): Promise<Lecture> {
         try {
@@ -69,6 +98,48 @@ export class LectureService {
             await lesson.save();
 
             return await newLecture.save();
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+    
+    async updateLecture(id: Types.ObjectId, updateData: UpdateLectureDto): Promise<Lecture> {
+        try {
+            const lecture = await this.lectureSchema.findById(id);
+            if (!lecture) {
+                throw new HttpException("Bài giảng không tồn tại", StatusCode.NOT_FOUND);
+            }
+    
+            if (updateData.title) lecture.title = updateData.title;
+            if (updateData.description) lecture.description = updateData.description;
+            if (updateData.type) lecture.type = updateData.type;
+            if (updateData['content.text']) lecture.content.text = updateData['content.text'];
+            if (updateData['content.duration']) lecture.content.duration = updateData['content.duration'];
+
+            if (updateData['content.video']) {
+                const videoUrl = await this.cloudinaryService.uploadFileAsync(updateData['content.video'], {
+                    folder: 'lectures',
+                    fileName: lecture._id.toString(),
+                    resourceType: 'video'
+                });
+                lecture.content.videoUrl = videoUrl;
+            }
+    
+            return await lecture.save();
+        } catch (error) {
+            throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
+        }
+    }
+
+    async deleteLecture(id: Types.ObjectId): Promise<void> {
+        try {
+            const lecture = await this.lectureSchema.findById(id);
+            if (!lecture) {
+                throw new HttpException("Bài giảng không tồn tại", StatusCode.NOT_FOUND);
+            }
+
+            lecture.isDeleted = true;
+            await lecture.save();
         } catch (error) {
             throw error instanceof HttpException ? error : new HttpException("Lỗi không xác định", StatusCode.INTERNAL_SERVER);
         }
